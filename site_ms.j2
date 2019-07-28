@@ -1,0 +1,63 @@
+*************************************************************************** 
+                                       
+Please configure at MS: {{ sitel2[0][0] }} 
+                                       
+*************************************************************************** 
+                                       
+# 
+interface {{ sitel3[0][1] }} 
+ undo portswitch 
+ description {{ sitel3[0][8] }}
+ ipv6 enable 
+ ip address {{ sitel3[0][2].split("/")[0] }} 255.255.255.254 
+ ipv6 address {{sitel3[0][3].split("/")[0]}}  {{sitel3[0][3].split("/")[1]}} 
+ pim sm 
+ isis enable 1 
+ isis ipv6 enable 1 
+ isis circuit-type p2p 
+ isis circuit-level level-1 
+ isis authentication-mode md5 cipher %^%#d"db2!3cdC:XQgF]gEYEYvn&Mnrn:(.EO2QvDK[J%^%# 
+ isis ipv6 cost 1000 
+ isis cost 1000 
+ isis suppress-reachability 
+ isis peer hold-max-cost timer 540000 
+ mode lacp-static
+ {% if (sitel2|length+1)//2 >1 -%}
+ least active-link number {{(sitel2|length+1)//2}} 
+ {% endif -%}
+ lacp timeout fast 
+ commit 
+# 
+{% for site in sitel2 -%}
+interface {{site[1]}}
+ description {{site[6]}} 
+ {{site[2][:9]}} {{site[2][9:]}}
+ undo shutdown 
+ qos queue 2 shaping percent cir 80 
+ qos queue 5 shaping percent cir 50 
+ qos queue 0 wred SULTAN-WRED_DPF 
+ qos queue 1 wred SULTAN-WRED_DPF 
+ qos queue 4 wred SULTAN-WRED_DPF 
+ qos wfq 0 to 1 3 to 4 
+ qos queue 0 wfq weight 2 
+ qos queue 1 wfq weight 18 
+ qos queue 4 wfq weight 80 
+ Enable snmp trap updown 
+ commit 
+# 
+{% endfor -%}
+{% for site in sitel2 -%}
+bfd {{site[1]}} bind peer-ip default-ip interface {{site[1]}}
+ {% if site[1].split("/")[2]|length == 2 -%}
+ discriminator local {{site[1].split("/")[0][-1]}}{{site[1].split("/")[2]}}
+ {% endif -%}
+ {% if site[1].split("/")[2]|length == 1 -%}
+ discriminator local {{site[1].split("/")[0][-1]}}{{site[1].split("/")[1]}}{{site[1].split("/")[2]}}
+ {% endif -%}
+ discriminator remote {{site[4].split("/")[0].split("G")[0]}}{{site[4].split("/")[1]}}{{site[4].split("/")[2]}}
+ min-tx-interval 50 
+ min-rx-interval 50 
+ process-interface-status reboot-no-impact 
+ commit 
+# 
+{% endfor -%}
